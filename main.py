@@ -22,7 +22,7 @@ headers = {'Authorization': 'token %s' % api_token}
 # Get repository CK metrics
 def get_repository_ck_data():
   with open('class.csv', newline='') as csvfile:
-    spamreader = csv.reader(csvfile, delimiter=' ', quotechar='|')
+    spamreader = csv.reader(csvfile, quotechar='|')
     next(spamreader)
     loc_total = 0
     cbo_array  = []
@@ -31,10 +31,10 @@ def get_repository_ck_data():
     has_java_file = False
 
     for row in spamreader:
-      loc = row[0].split(',')[34]
-      cbo = row[0].split(',')[3]
-      dit = row[0].split(',')[8]
-      lcon = row[0].split(',')[11]
+      loc = row[34]
+      cbo = row[3]
+      dit = row[8]
+      lcon = row[11]
 
       loc_total += int(loc)
       cbo_array.append(int(cbo))
@@ -62,90 +62,91 @@ def calculate_repository_age(created_at):
   return delta.days/360
 
 def remove_readonly(func, path, excinfo):
+    path = r"{}".format(path)
     os.chmod(path, stat.S_IWRITE)
     func(path)
 
-# def save_data_to_file(data):
-#     # open the file in the write mode
-#     f = open('repositories.csv', 'a', newline='')
-#     writer = csv.writer(f)
-#     for repository in data:
-#         row = []
-#         row.append(repository['node']['name'])
-#         row.append(repository['node']['url'])
-#         age = calculate_repository_age(repository['node']['createdAt'])
-#         age = math.modf(age)
-#         age = age[1]
-#         row.append(age)
-#         row.append(repository['node']['releases']['totalCount'])
-#         writer.writerow(row)
-#     f.close()
+def save_data_to_file(data):
+    # open the file in the write mode
+    f = open('repositories.csv', 'a', newline='')
+    writer = csv.writer(f)
+    for repository in data:
+        row = []
+        row.append(repository['node']['name'])
+        row.append(repository['node']['url'])
+        age = calculate_repository_age(repository['node']['createdAt'])
+        age = math.modf(age)
+        age = age[1]
+        row.append(age)
+        row.append(repository['node']['releases']['totalCount'])
+        writer.writerow(row)
+    f.close()
 
-# # A simple function to use requests.post to make the API call. Note the json= section.
-# def run_query(query):
-#     request = requests.post('https://api.github.com/graphql',
-#                             json={'query': query}, headers=headers)
-#     if request.status_code == 200:
-#         return request.json()
-#     else:
-#         raise Exception("Query failed to run by returning code of {}. {}".format(
-#             request.status_code, query))
+# A simple function to use requests.post to make the API call. Note the json= section.
+def run_query(query):
+    request = requests.post('https://api.github.com/graphql',
+                            json={'query': query}, headers=headers)
+    if request.status_code == 200:
+        return request.json()
+    else:
+        raise Exception("Query failed to run by returning code of {}. {}".format(
+            request.status_code, query))
 
 
-# # The GraphQL query (with a few aditional bits included) itself defined as a multi-line string.
-# query = """
-# {
-#   search(query: "is:public stars:>100 sort:stars-desc language:java", type: REPOSITORY, first: 10, after:null) {
-#     repositoryCount
-#     pageInfo {
-#       endCursor
-#       startCursor
-#     }
-#     edges {
-#       node {
-#         ... on Repository {
-#           name
-#           url
-#           createdAt
-#           releases {
-#             totalCount
-#           }
-#         }
-#       }
-#     }
-#   }
-# }
-# """
+# The GraphQL query (with a few aditional bits included) itself defined as a multi-line string.
+query = """
+{
+  search(query: "is:public stars:>100 sort:stars-desc language:java", type: REPOSITORY, first: 10, after:null) {
+    repositoryCount
+    pageInfo {
+      endCursor
+      startCursor
+    }
+    edges {
+      node {
+        ... on Repository {
+          name
+          url
+          createdAt
+          releases {
+            totalCount
+          }
+        }
+      }
+    }
+  }
+}
+"""
 
-# header = ['name', 'repo_clone_url', 'age', 'releases_number']
+header = ['name', 'repo_clone_url', 'age', 'releases_number']
 
-# f = open('repositories.csv', 'w', newline='')
-# writer = csv.writer(f)
-# writer.writerow(header)
-# f.close()
+f = open('repositories.csv', 'w', newline='')
+writer = csv.writer(f)
+writer.writerow(header)
+f.close()
 
-# query_result = run_query(query)  # Execute the query
+query_result = run_query(query)  # Execute the query
 
-# save_data_to_file(query_result['data']['search']['edges'])
-# end_cursor = '"' + \
-#     query_result['data']['search']['pageInfo']['endCursor'] + '"'
-# query = query.replace('null', end_cursor)
-# old_end_cursor = end_cursor
+save_data_to_file(query_result['data']['search']['edges'])
+end_cursor = '"' + \
+    query_result['data']['search']['pageInfo']['endCursor'] + '"'
+query = query.replace('null', end_cursor)
+old_end_cursor = end_cursor
 
-# for x in range(1, 100):
-#     query_result = run_query(query)
-#     save_data_to_file(query_result['data']['search']['edges'])
-#     new_end_cursor = '"' + \
-#         query_result['data']['search']['pageInfo']['endCursor'] + '"'
-#     query = query.replace(old_end_cursor, new_end_cursor)
-#     old_end_cursor = new_end_cursor
+for x in range(1, 100):
+    query_result = run_query(query)
+    save_data_to_file(query_result['data']['search']['edges'])
+    new_end_cursor = '"' + \
+        query_result['data']['search']['pageInfo']['endCursor'] + '"'
+    query = query.replace(old_end_cursor, new_end_cursor)
+    old_end_cursor = new_end_cursor
 
-# # Create result file
-# header = ['name', 'repo_clone_url', 'age', 'releases_number', 'size', 'CBO', 'DIT', 'LCOM']
-# f = open('result.csv', 'w', newline='')
-# writer = csv.writer(f)
-# writer.writerow(header)
-# f.close()
+# Create result file
+header = ['name', 'repo_clone_url', 'age', 'releases_number', 'size', 'CBO', 'DIT', 'LCOM']
+f = open('result.csv', 'w', newline='')
+writer = csv.writer(f)
+writer.writerow(header)
+f.close()
 
 today = date.today()
 with open('repositories.csv', newline='') as csvfile:
@@ -163,11 +164,11 @@ with open('repositories.csv', newline='') as csvfile:
     repo_ck_metrics = get_repository_ck_data()
     if repo_ck_metrics.loc == 0:
       # Remove repository folder  
-      shutil.rmtree('./repository', onerror=remove_readonly)
+      shutil.rmtree(r'repository', onerror=remove_readonly)
       continue
     repo_metrcis = RepositoryMetrics(name, repo_clone_url, age, releases_number, repo_ck_metrics.loc, repo_ck_metrics.cbo, repo_ck_metrics.dit, repo_ck_metrics.lcon)
     save_ck_data_to_file(repo_metrcis)
     # Remove repository folder  
-    shutil.rmtree('./repository', onerror=remove_readonly)
+    shutil.rmtree(r'repository', onerror=remove_readonly)
 
 
