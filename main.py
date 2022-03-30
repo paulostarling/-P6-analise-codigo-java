@@ -51,7 +51,7 @@ def get_repository_ck_data():
 def save_ck_data_to_file(repo_metrics: RepositoryMetrics):
   with open("result.csv", "a+", newline='') as csvfile:
     writer = csv.writer(csvfile)
-    row = [repo_metrics.name, repo_metrics.repo_clone_url, repo_metrics.age, repo_metrics.releases_number, repo_metrics.loc, repo_metrics.cbo, repo_metrics.dit, repo_metrics.lcon]
+    row = [repo_metrics.name, repo_metrics.repo_clone_url, repo_metrics.age, repo_metrics.releases_number, repo_metrics.loc, repo_metrics.cbo, repo_metrics.dit, repo_metrics.lcon, repo_metrics.stargazers]
     writer.writerow(row)
 
 def calculate_repository_age(created_at):
@@ -62,7 +62,6 @@ def calculate_repository_age(created_at):
   return delta.days/360
 
 def remove_readonly(func, path, excinfo):
-    path = r"{}".format(path)
     os.chmod(path, stat.S_IWRITE)
     func(path)
 
@@ -79,6 +78,7 @@ def save_data_to_file(data):
         age = age[1]
         row.append(age)
         row.append(repository['node']['releases']['totalCount'])
+        row.append(repository['node']['stargazers']['totalCount'])
         writer.writerow(row)
     f.close()
 
@@ -111,6 +111,9 @@ query = """
           releases {
             totalCount
           }
+          stargazers {
+             totalCount
+           }
         }
       }
     }
@@ -118,7 +121,7 @@ query = """
 }
 """
 
-header = ['name', 'repo_clone_url', 'age', 'releases_number']
+header = ['name', 'repo_clone_url', 'age', 'releases_number', 'stargazers']
 
 f = open('repositories.csv', 'w', newline='')
 writer = csv.writer(f)
@@ -157,18 +160,23 @@ with open('repositories.csv', newline='') as csvfile:
     repo_clone_url = row[0].split(',')[1]
     age = row[0].split(',')[2]
     releases_number = row[0].split(',')[3]
+    stargazers = row[0].split(',')[4]
     # Repo.clone_from(repo_clone_url, "./repository")
-    Repo.clone_from(repo_clone_url, "./repository")
+    Repo.clone_from(repo_clone_url, "./repository", depth=1, filter='blob:none')
     # Run CK
-    subprocess.call(['java', '-jar', 'ck-ck-0.7.0/target/ck-0.7.0-jar-with-dependencies.jar', './repository'])
+    try:
+      subprocess.call(['java', '-jar', 'ck-ck-0.7.0/target/ck-0.7.0-jar-with-dependencies.jar', './repository', "true", "0", "False"])
+    except Exception:
+        shutil.rmtree('C:\\Users\\ppsta\\EngenhariaSoftware\\P6\Lab\\P6-analise-codigo-java\\repository', onerror=remove_readonly)
+        continue
     repo_ck_metrics = get_repository_ck_data()
     if repo_ck_metrics.loc == 0:
       # Remove repository folder  
-      shutil.rmtree(r'repository', onerror=remove_readonly)
+      shutil.rmtree('C:\\Users\\ppsta\\EngenhariaSoftware\\P6\Lab\\P6-analise-codigo-java\\repository', onerror=remove_readonly)
       continue
-    repo_metrcis = RepositoryMetrics(name, repo_clone_url, age, releases_number, repo_ck_metrics.loc, repo_ck_metrics.cbo, repo_ck_metrics.dit, repo_ck_metrics.lcon)
+    repo_metrcis = RepositoryMetrics(name, repo_clone_url, age, releases_number, repo_ck_metrics.loc, repo_ck_metrics.cbo, repo_ck_metrics.dit, repo_ck_metrics.lcon, stargazers)
     save_ck_data_to_file(repo_metrcis)
     # Remove repository folder  
-    shutil.rmtree(r'repository', onerror=remove_readonly)
+    shutil.rmtree('C:\\Users\\ppsta\\EngenhariaSoftware\\P6\Lab\\P6-analise-codigo-java\\repository', onerror=remove_readonly)
 
 
