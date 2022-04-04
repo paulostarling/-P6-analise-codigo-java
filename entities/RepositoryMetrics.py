@@ -1,6 +1,6 @@
 
 class RepositoryMetrics:
-  def __init__(self, name, repo_clone_url, age, releases_number, loc, cbo, dit, lcon):
+  def __init__(self, name, repo_clone_url, age, releases_number, loc, cbo, dit, lcon, stargazers):
     self.name = name
     self.repo_clone_url = repo_clone_url
     self.age = age
@@ -9,3 +9,4 @@ class RepositoryMetrics:
     self.cbo = cbo
     self.dit = dit
     self.lcon = lcon
+    self.stargazers = stargazers
